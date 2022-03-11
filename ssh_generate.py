@@ -162,14 +162,7 @@ def main():
     if LIMIT:
         project_names = project_names[0:LIMIT]
 
-    DENYLIST = [
-        "gcp-environment-deployment",
-        "journi-telephony-contact-center",
-        "migrated-service",
-        "dependabot-test",
-        "benefit-adapter-service",
-        "host-validation-service",
-    ]
+    DENYLIST = []
 
     for project in project_names:
         if project in DENYLIST:
