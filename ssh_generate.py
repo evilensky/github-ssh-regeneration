@@ -112,9 +112,9 @@ def main():
     # Set to github or bitbucket
     VCS = convert_vcs(sys.argv[3])
 
-    PROJECT = sys.argv[4]
+    # PROJECT = sys.argv[4]
 
-    LIMIT = sys.argv[5]
+    LIMIT = int(sys.argv[4])
 
     headers = {"Circle-Token": CIRCLE_API_TOKEN, "Content-type": "application/json"}
 
@@ -148,26 +148,52 @@ def main():
         if len(project["followers"]) > 0 and org_name == ORG:
             project_names.append(project_name)
 
-    if PROJECT:
-        if PROJECT in project_names:
-            # filter the list down to just a single project
-            project_names = [PROJECT]
-        else:
-            raise Exception(
-                "project name {PROJECT} is not found in list of projects".format(
-                    PROJECT=PROJECT
-                )
-            )
+    # if PROJECT:
+    #     if PROJECT in project_names:
+    #         # filter the list down to just a single project
+    #         project_names = [PROJECT]
+    #     else:
+    #         raise Exception(
+    #             "project name {PROJECT} is not found in list of projects".format(
+    #                 PROJECT=PROJECT
+    #             )
+    #         )
 
     if LIMIT:
-        project_names = project_names[:LIMIT]
+        project_names = project_names[0:LIMIT]
+
+    DENYLIST = [
+        "gcp-environment-deployment",
+        "journi-telephony-contact-center",
+        "migrated-service",
+        "dependabot-test",
+        "benefit-adapter-service",
+        "host-validation-service",
+    ]
 
     for project in project_names:
+        if project in DENYLIST:
+            continue
         # Pulls all checkout keys for a project
         ssh_keys_url = "https://circleci.com/api/v2/project/{vcs}/{org}/{project}/checkout-key".format(
             vcs=VCS, org=ORG, project=project
         )
-        ssh_keys_resp = request(url=ssh_keys_url, headers=headers)
+        try:
+            ssh_keys_resp = request(url=ssh_keys_url, headers=headers)
+            if ssh_keys_resp.status == 404:
+                # circle project is not found at above URL, but shows up in projects listing
+                print("project {project} not found".format(project=project))
+                raise NotImplementedError(
+                    "project {project} not found".format(project=project)
+                )
+            if ssh_keys_resp.status == 403:
+                # Circle project is found but not github repo
+                print("gh repo for {project} not found".format(project=project))
+                raise ValueError(
+                    "repo for project {project} not found".format(project=project)
+                )
+        except (NotImplementedError, ValueError):
+            continue
         if ssh_keys_resp.error_count > 0:
             raise Exception(
                 "error getting ssh_keys: {response} url: {url}".format(
