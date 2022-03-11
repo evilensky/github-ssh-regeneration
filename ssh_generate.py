@@ -185,7 +185,12 @@ def main():
                 raise ValueError(
                     "repo for project {project} not found".format(project=project)
                 )
-        except (NotImplementedError, ValueError):
+            if ssh_keys_resp.status == 500:
+                print("Unknown circle error for {project}".format(project=project))
+                raise SystemError(
+                    "Unknown circle error for {project}".format(project=project)
+                )
+        except (NotImplementedError, SystemError, ValueError):
             continue
         if ssh_keys_resp.error_count > 0:
             raise Exception(
@@ -237,7 +242,7 @@ def main():
             checkout_key_resp = request(
                 method="POST", url=checkout_key_url, headers=headers, data=payload
             )
-            if checkout_key_resp.status == 403:
+            if checkout_key_resp.status == 403 or checkout_key_resp.status == 500:
                 print(
                     "skipping project: {project} as unable to create new key. url: {url}".format(
                         project=project, url=checkout_key_url
